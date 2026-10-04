@@ -1,0 +1,22 @@
+service: api
+method: GET
+path: /
+conditions:
+  - Serves whatever the frontend build wrote to backend/app/frontend; that directory is a build output and is not part of the source checkout.
+evidence:
+  - {file: backend/app/main.py, line: 36, kind: route}
+  - {file: backend/app/main.py, line: 11, kind: route}
+  - {file: development.md, line: 53, kind: requirement}
+rows:
+  - key: api|GET|/|happy|serves-built-frontend
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: gap
+    expectation: pending
+    reason: >-
+      Discovery gap. app.frontend("/", directory=FRONTEND_DIR) registers low-priority static routes whose
+      paths are the files of a frontend build (backend/app/frontend), which the checkout does not contain,
+      so the served paths cannot be enumerated from source. It is a static web frontend rather than an
+      HTTP API; listing it needs the build output of the reference deployment or the owner's decision
+      that it is out of scope.
+    evidence:
+      - {file: backend/app/main.py, line: 36, kind: implementation}

@@ -1,0 +1,93 @@
+schema: v1
+name: The test email route is refused without a token and to a normal user
+description: >-
+  Pending expectations. The route declares the superuser dependency (utils.py:13). Missing token:
+  401 "Not authenticated" is the default of the pinned framework's OAuth2PasswordBearer
+  (deps.py:16-18). Normal user: 403 and its detail come only from the dependency branch
+  (deps.py:52-56). The normal user is signed up by this case; the recipient is a run-unique
+  example.com address.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/utils/test-email/|auth|missing-token-rejected
+  - key: api|POST|/api/v1/utils/test-email/|auth|normal-user-forbidden
+expectation: pending
+tags: [utils, auth]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case signed up. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as the case-owned user
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_token: $.access_token
+      assert:
+        status: 200
+steps:
+  - name: send a test email without a token
+    request:
+      method: POST
+      path: /api/v1/utils/test-email/
+      params:
+        email_to: r2t-mail-${ctx.case.id_short}@example.com
+    assert:
+      status: 401
+      json:
+        detail: Not authenticated
+  - name: send a test email as a normal user
+    request:
+      method: POST
+      path: /api/v1/utils/test-email/
+      params:
+        email_to: r2t-mail-${ctx.case.id_short}@example.com
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+    assert:
+      status: 403
+      json:
+        detail: The user doesn't have enough privileges
+teardown:
+  steps:
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

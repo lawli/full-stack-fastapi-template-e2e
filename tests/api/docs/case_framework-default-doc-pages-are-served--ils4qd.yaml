@@ -1,0 +1,31 @@
+schema: v1
+name: The framework-default ReDoc and OAuth2 redirect pages are served
+description: >-
+  Pending expectations: both routes exist only because the FastAPI constructor is called without
+  redoc_url or swagger_ui_oauth2_redirect_url (main.py:21-25), which leaves the defaults of the
+  pinned framework version (/redoc and /docs/oauth2-redirect). Nothing in the repository mentions
+  them or states what they serve; the cases assert an HTML page.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/redoc|happy|serves-redoc-page
+  - key: api|GET|/docs/oauth2-redirect|happy|serves-oauth2-redirect-page
+expectation: pending
+tags: [docs, happy]
+steps:
+  - name: get the ReDoc page
+    request:
+      method: GET
+      path: /redoc
+    assert:
+      status: 200
+      headers:
+        content-type: "@contains text/html"
+  - name: get the OAuth2 redirect page
+    request:
+      method: GET
+      path: /docs/oauth2-redirect
+    assert:
+      status: 200
+      headers:
+        content-type: "@contains text/html"

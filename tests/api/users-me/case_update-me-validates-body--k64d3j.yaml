@@ -1,0 +1,108 @@
+schema: v1
+name: Updating the own profile validates the email format and the name length
+description: >-
+  UserUpdateMe declares email as an email address and full_name with max_length 255
+  (models.py:42-43); the API document lists 422 HTTPValidationError (types.gen.ts:569-574). The
+  profile is read back unchanged. The user belongs to this case and is deleted by id in teardown,
+  which also removes it if a missing check had changed it.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|PATCH|/api/v1/users/me|validation|invalid-email-format
+  - key: api|PATCH|/api/v1/users/me|validation|full-name-too-long
+tags: [users-me, validation]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case signed up. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as the case-owned user
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_token: $.access_token
+      assert:
+        status: 200
+steps:
+  - name: update the own email to a value that is not an email address
+    request:
+      method: PATCH
+      path: /api/v1/users/me
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+      body:
+        email: r2t-${ctx.case.id_short}-not-an-email
+    assert:
+      status: 422
+      json:
+        detail: "@type array"
+        detail.0.loc: "@contains email"
+        detail.0.type: "@type string"
+  - name: update the own full name to 256 characters
+    request:
+      method: PATCH
+      path: /api/v1/users/me
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+      body:
+        full_name: "${'n' * 256}"
+    assert:
+      status: 422
+      json:
+        detail: "@type array"
+        detail.0.loc: "@contains full_name"
+        detail.0.type: "@type string"
+  - name: read the own profile to confirm it is unchanged
+    request:
+      method: GET
+      path: /api/v1/users/me
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+    assert:
+      status: 200
+      json:
+        email: r2t-${ctx.case.id_short}@example.com
+        full_name: r2t ${ctx.case.id_short}
+teardown:
+  steps:
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

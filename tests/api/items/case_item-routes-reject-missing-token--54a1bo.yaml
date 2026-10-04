@@ -1,0 +1,151 @@
+schema: v1
+name: The item routes reject a request without a token
+description: >-
+  Pending expectations: the repository declares the bearer scheme (deps.py:16-18; sdk.gen.ts
+  "security" on each operation) but not the response for a missing token; 401 "Not authenticated"
+  is the default of the pinned framework's OAuth2PasswordBearer. The by-id requests target an item
+  created by this case, which its owner reads back unchanged at the end.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/items/|auth|missing-token-rejected
+  - key: api|GET|/api/v1/items/{id}|auth|missing-token-rejected
+  - key: api|POST|/api/v1/items/|auth|missing-token-rejected
+  - key: api|PUT|/api/v1/items/{id}|auth|missing-token-rejected
+  - key: api|DELETE|/api/v1/items/{id}|auth|missing-token-rejected
+expectation: pending
+tags: [items, auth]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the item with its owner's token and then the user with the provided superuser.
+    If it fails, log in as a superuser and call DELETE /api/v1/items/<item_id> and
+    DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+    - item "r2t item <case id_short>" owned by that user
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as the case-owned user
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_token: $.access_token
+      assert:
+        status: 200
+    - name: create an item owned by the case-owned user
+      request:
+        method: POST
+        path: /api/v1/items/
+        headers:
+          Authorization: Bearer ${ctx.user_token}
+        body:
+          title: r2t item ${ctx.case.id_short}
+      extract:
+        item_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+steps:
+  - name: list items without a token
+    request:
+      method: GET
+      path: /api/v1/items/
+    assert:
+      status: 401
+      json:
+        detail: Not authenticated
+  - name: read the item without a token
+    request:
+      method: GET
+      path: /api/v1/items/${ctx.item_id}
+    assert:
+      status: 401
+      json:
+        detail: Not authenticated
+  - name: create an item without a token
+    request:
+      method: POST
+      path: /api/v1/items/
+      body:
+        title: r2t unauthenticated ${ctx.case.id_short}
+    assert:
+      status: 401
+      json:
+        detail: Not authenticated
+  - name: update the item without a token
+    request:
+      method: PUT
+      path: /api/v1/items/${ctx.item_id}
+      body:
+        title: r2t changed ${ctx.case.id_short}
+    assert:
+      status: 401
+      json:
+        detail: Not authenticated
+  - name: delete the item without a token
+    request:
+      method: DELETE
+      path: /api/v1/items/${ctx.item_id}
+    assert:
+      status: 401
+      json:
+        detail: Not authenticated
+  - name: read the item as its owner to confirm it is unchanged
+    request:
+      method: GET
+      path: /api/v1/items/${ctx.item_id}
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+    assert:
+      status: 200
+      json:
+        title: r2t item ${ctx.case.id_short}
+teardown:
+  steps:
+    - name: delete the item
+      request:
+        method: DELETE
+        path: /api/v1/items/${ctx.item_id}
+        headers:
+          Authorization: Bearer ${ctx.user_token}
+      assert:
+        status: [200, 404]
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

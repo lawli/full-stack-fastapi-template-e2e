@@ -1,0 +1,97 @@
+schema: v1
+name: A recovery mail is sent only when the email is registered
+description: >-
+  "Email-based password recovery" (README.md:24) and "Only send email if user actually exists"
+  (login.py:61). The mail is the business effect of this route and cannot be observed through the
+  API under test, so the local mail catcher is read with the search call the repository's own
+  end-to-end helper uses (frontend/tests/utils/mailpit.ts:20). The handler sends the mail before it
+  answers (login.py:67), so no waiting is needed. The catcher is only read, never modified.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/password-recovery/{email}|dependency|recovery-mail-delivered-to-registered-address
+  - key: api|POST|/api/v1/password-recovery/{email}|dependency|no-mail-for-unregistered-address
+tags: [password-recovery, dependency, mail]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case signed up. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com. One recovery
+    mail addressed to that address stays in the mail catcher; it is not removed by this case.
+  resources:
+    - user r2t-<case id_short>@example.com
+    - recovery mail to r2t-<case id_short>@example.com in the mail catcher
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+steps:
+  - name: request recovery for the registered email
+    request:
+      method: POST
+      path: /api/v1/password-recovery/r2t-${ctx.case.id_short}@example.com
+    assert:
+      status: 200
+  - name: find the recovery mail for the registered address
+    service: mailpit
+    request:
+      method: GET
+      path: /api/v1/search
+      params:
+        query: "to:r2t-${ctx.case.id_short}@example.com"
+        limit: 1
+    assert:
+      status: 200
+      json:
+        messages: "@len 1"
+  - name: request recovery for an unregistered email
+    request:
+      method: POST
+      path: /api/v1/password-recovery/r2t-none-${ctx.case.id_short}@example.com
+    assert:
+      status: 200
+  - name: find no mail for the unregistered address
+    service: mailpit
+    request:
+      method: GET
+      path: /api/v1/search
+      params:
+        query: "to:r2t-none-${ctx.case.id_short}@example.com"
+        limit: 1
+    assert:
+      status: 200
+      json:
+        messages: "@len 0"
+teardown:
+  steps:
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

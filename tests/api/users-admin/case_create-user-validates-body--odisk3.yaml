@@ -1,0 +1,120 @@
+schema: v1
+name: User creation validates the email format and the password
+description: >-
+  UserCreate declares email as an email address and password as required with min_length 8 and
+  max_length 128 (models.py:15, 23); the API document lists 422 HTTPValidationError
+  (types.gen.ts:512-517). No request can leave a record behind even if a check were missing: the
+  password cases reuse the email of a user this case signed up, and the email case also carries a
+  too-short password, so the assertion looks for the email error by its location instead of by
+  position.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/users/|validation|invalid-email-format
+  - key: api|POST|/api/v1/users/|validation|password-too-short
+  - key: api|POST|/api/v1/users/|validation|password-too-long
+  - key: api|POST|/api/v1/users/|validation|missing-password
+tags: [users, validation]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case signed up. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+steps:
+  - name: create a user with a value that is not an email address
+    request:
+      method: POST
+      path: /api/v1/users/
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+      body:
+        email: r2t-${ctx.case.id_short}-not-an-email
+        password: seven77
+    assert:
+      status: 422
+      json:
+        detail: "@type array"
+      text: '@regex /"loc":\s*\[\s*"body",\s*"email"\s*\]/'
+  - name: create a user with a 7-character password
+    request:
+      method: POST
+      path: /api/v1/users/
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+      body:
+        email: r2t-${ctx.case.id_short}@example.com
+        password: seven77
+    assert:
+      status: 422
+      json:
+        detail: "@type array"
+        detail.0.loc: "@contains password"
+        detail.0.type: "@type string"
+  - name: create a user with a 129-character password
+    request:
+      method: POST
+      path: /api/v1/users/
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+      body:
+        email: r2t-${ctx.case.id_short}@example.com
+        password: "${'x' * 129}"
+    assert:
+      status: 422
+      json:
+        detail: "@type array"
+        detail.0.loc: "@contains password"
+        detail.0.type: "@type string"
+  - name: create a user without a password
+    request:
+      method: POST
+      path: /api/v1/users/
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+      body:
+        email: r2t-${ctx.case.id_short}@example.com
+    assert:
+      status: 422
+      json:
+        detail: "@type array"
+        detail.0.loc: "@contains password"
+        detail.0.type: "@type string"
+teardown:
+  steps:
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

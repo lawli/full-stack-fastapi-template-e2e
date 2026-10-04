@@ -1,0 +1,7 @@
+[project]
+name = "repo2test-workspace"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = ["apitest==0.2.4"]
+[tool.uv.sources]
+apitest = {path = "vendor/apitest-0.2.4-py3-none-any.whl"}

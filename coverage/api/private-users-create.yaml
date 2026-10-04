@@ -1,0 +1,69 @@
+service: api
+method: POST
+path: /api/v1/private/users/
+conditions:
+  - 'Registered only when settings.FASTAPI_ENV == "development" (backend/app/api/main.py:13); the reference deployment runs with FASTAPI_ENV=development.'
+evidence:
+  - {file: backend/app/api/routes/private.py, line: 23, kind: route}
+  - {file: backend/app/api/routes/private.py, line: 13, kind: route}
+  - {file: backend/app/api/main.py, line: 14, kind: route}
+  - {file: backend/app/api/main.py, line: 13, kind: route}
+  - {file: backend/app/main.py, line: 35, kind: route}
+  - {file: backend/app/core/config.py, line: 22, kind: route}
+  - {file: frontend/src/client/sdk.gen.ts, line: 376, kind: requirement}
+rows:
+  - key: api|POST|/api/v1/private/users/|happy|creates-user-without-authentication
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/private.py, line: 23, kind: declarative}
+      - {file: backend/app/api/routes/private.py, line: 16, kind: declarative}
+      - {file: backend/app/models.py, line: 63, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 944, kind: requirement}
+  - key: api|POST|/api/v1/private/users/|validation|missing-full-name
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/private.py, line: 19, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 154, kind: requirement}
+      - {file: frontend/src/client/types.gen.ts, line: 935, kind: requirement}
+  - key: api|POST|/api/v1/private/users/|validation|email-format-not-enforced-by-request-model
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: blocked
+    expectation: pending
+    reason: >-
+      Needs two inputs from the owner. (1) Intended behavior: the request model accepts any string as email
+      (private.py:17) while the declared response model requires an email address (models.py:15, 63), so
+      the contract does not say whether a non-email string is accepted or rejected; see
+      defects/private-users-create-email-not-validated.md. (2) Permission to execute: if the service
+      stores the row, GET /api/v1/users/ validates every row as UserPublic (users.py:50) and may fail for
+      all callers until the row is removed.
+    evidence:
+      - {file: backend/app/api/routes/private.py, line: 17, kind: declarative}
+      - {file: backend/app/models.py, line: 15, kind: declarative}
+      - {file: backend/app/api/routes/private.py, line: 29, kind: implementation}
+  - key: api|POST|/api/v1/private/users/|state|duplicate-email
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: blocked
+    expectation: pending
+    reason: >-
+      Needs the intended response for an email that already exists. The model declares email unique
+      (models.py:15), but this handler has no duplicate check (private.py:29-36) and no API document
+      states a status; the sibling routes answer 400 (users.py:62) or 409 (users.py:91), so no single
+      expectation can be derived.
+    evidence:
+      - {file: backend/app/models.py, line: 15, kind: declarative}
+      - {file: backend/app/api/routes/private.py, line: 35, kind: implementation}
+  - key: api|POST|/api/v1/private/users/|state|route-absent-outside-development
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: gap
+    expectation: pending
+    reason: >-
+      The route is registered only when FASTAPI_ENV is "development" (backend/app/api/main.py:13). The
+      reference deployment of the local profile runs with FASTAPI_ENV=development, so the absence of the
+      route cannot be observed there; it needs a deployment started without that setting.
+    evidence:
+      - {file: backend/app/api/main.py, line: 13, kind: implementation}
+      - {file: backend/app/core/config.py, line: 27, kind: declarative}

@@ -1,0 +1,51 @@
+schema: v1
+name: The test email route validates the recipient parameter
+description: >-
+  email_to is declared as a required email address query parameter (utils.py:16;
+  types.gen.ts:730-735) and the API document lists 422 HTTPValidationError (types.gen.ts:739-744).
+  Nothing is sent: validation rejects the request before the handler runs. Read-only.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/utils/test-email/|validation|invalid-email-to
+  - key: api|POST|/api/v1/utils/test-email/|validation|missing-email-to
+mutates: false
+tags: [utils, validation]
+steps:
+  - name: log in as the provided superuser
+    request:
+      method: POST
+      path: /api/v1/login/access-token
+      form:
+        username: ${ctx.profile.test_data.superuser.email}
+        password: ${ctx.profile.test_data.superuser.password}
+    extract:
+      admin_token: $.access_token
+    assert:
+      status: 200
+  - name: send a test email to a value that is not an email address
+    request:
+      method: POST
+      path: /api/v1/utils/test-email/
+      params:
+        email_to: r2t-${ctx.case.id_short}-not-an-email
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 422
+      json:
+        detail: "@type array"
+        detail.0.loc: "@contains email_to"
+        detail.0.type: "@type string"
+  - name: send a test email without a recipient
+    request:
+      method: POST
+      path: /api/v1/utils/test-email/
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 422
+      json:
+        detail: "@type array"
+        detail.0.loc: "@contains email_to"
+        detail.0.type: "@type string"

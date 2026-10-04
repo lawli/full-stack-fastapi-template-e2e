@@ -1,0 +1,102 @@
+schema: v1
+name: A superuser cannot delete its own account by id
+description: >-
+  Pending expectation: status 403 and the detail text come only from the handler branch
+  (users.py:224-227). The provided superuser is never the target: the case signs up its own user,
+  promotes it to superuser, and that user tries to delete itself, so a missing guard could only
+  remove case-owned data.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|DELETE|/api/v1/users/{user_id}|auth|superuser-cannot-delete-own-account
+expectation: pending
+tags: [users, auth]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case signed up and promoted, using the provided superuser. If it
+    fails, log in as a superuser and call DELETE /api/v1/users/<user_id>; the user's email is
+    r2t-<case id_short>@example.com and it has is_superuser true.
+  resources:
+    - superuser r2t-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: promote the case-owned user to superuser
+      request:
+        method: PATCH
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+        body:
+          is_superuser: true
+      assert:
+        status: 200
+        json:
+          is_superuser: true
+    - name: log in as the case-owned superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        own_token: $.access_token
+      assert:
+        status: 200
+steps:
+  - name: the case-owned superuser deletes itself by id
+    request:
+      method: DELETE
+      path: /api/v1/users/${ctx.user_id}
+      headers:
+        Authorization: Bearer ${ctx.own_token}
+    assert:
+      status: 403
+      json:
+        detail: Super users are not allowed to delete themselves
+  - name: read the case-owned superuser to confirm it still exists
+    request:
+      method: GET
+      path: /api/v1/users/${ctx.user_id}
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      json:
+        id: ${ctx.user_id}
+teardown:
+  steps:
+    - name: delete the case-owned superuser
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

@@ -1,0 +1,76 @@
+schema: v1
+name: Creating a user sends a new-account mail to the new address
+description: >-
+  Pending expectation: the mail is sent only by an imperative branch that depends on the mail
+  settings (users.py:69-77, config.py:59-62); no requirement states it. The reference deployment has
+  mail configured. The mail cannot be observed through the API under test, so the local mail catcher
+  is read with the search call the repository's own end-to-end helper uses
+  (frontend/tests/utils/mailpit.ts:20). The handler sends before it answers; the catcher is only
+  read.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/users/|dependency|new-account-email-delivered
+expectation: pending
+tags: [users, dependency, mail]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case created. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<created_id>; the user's email is r2t-<case id_short>@example.com. One
+    new-account mail addressed to that address stays in the mail catcher; it is not removed by this
+    case.
+  resources:
+    - user r2t-<case id_short>@example.com
+    - new-account mail to r2t-<case id_short>@example.com in the mail catcher
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+steps:
+  - name: create a user
+    request:
+      method: POST
+      path: /api/v1/users/
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+      body:
+        email: r2t-${ctx.case.id_short}@example.com
+        password: Pw-${ctx.case.id_short}
+    extract:
+      created_id: $.id
+    assert:
+      status: 200
+      json:
+        id: "@uuid"
+  - name: find the new-account mail for the new address
+    service: mailpit
+    request:
+      method: GET
+      path: /api/v1/search
+      params:
+        query: "to:r2t-${ctx.case.id_short}@example.com"
+        limit: 1
+    assert:
+      status: 200
+      json:
+        messages: "@len 1"
+teardown:
+  steps:
+    - name: delete the created user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.created_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

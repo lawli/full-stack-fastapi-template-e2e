@@ -1,0 +1,169 @@
+schema: v1
+name: Another normal user cannot read, update or delete an item
+description: >-
+  Pending expectations: status 403 "Not enough permissions" comes only from handler branches
+  (items.py:56-57, 89-90, 109-110). User A owns the item, user B attempts the three operations, and
+  user A reads the item back unchanged. Both users and the item are created by this case, so a
+  missing check could only touch case-owned data.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/items/{id}|auth|other-user-forbidden
+  - key: api|PUT|/api/v1/items/{id}|auth|other-user-forbidden
+  - key: api|DELETE|/api/v1/items/{id}|auth|other-user-forbidden
+expectation: pending
+tags: [items, auth]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the item with its owner's token and then both users with the provided
+    superuser. If it fails, log in as a superuser and call DELETE /api/v1/items/<item_id> and
+    DELETE /api/v1/users/<id> for each user; their emails are r2t-a-<case id_short>@example.com and
+    r2t-b-<case id_short>@example.com.
+  resources:
+    - user r2t-a-<case id_short>@example.com with item "r2t item <case id_short>"
+    - user r2t-b-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up user A
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-a-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_a_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: sign up user B
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-b-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_b_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as user A
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-a-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_a_token: $.access_token
+      assert:
+        status: 200
+    - name: log in as user B
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-b-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_b_token: $.access_token
+      assert:
+        status: 200
+    - name: user A creates an item
+      request:
+        method: POST
+        path: /api/v1/items/
+        headers:
+          Authorization: Bearer ${ctx.user_a_token}
+        body:
+          title: r2t item ${ctx.case.id_short}
+      extract:
+        item_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+steps:
+  - name: user B reads user A's item
+    request:
+      method: GET
+      path: /api/v1/items/${ctx.item_id}
+      headers:
+        Authorization: Bearer ${ctx.user_b_token}
+    assert:
+      status: 403
+      json:
+        detail: Not enough permissions
+  - name: user B updates user A's item
+    request:
+      method: PUT
+      path: /api/v1/items/${ctx.item_id}
+      headers:
+        Authorization: Bearer ${ctx.user_b_token}
+      body:
+        title: r2t changed ${ctx.case.id_short}
+    assert:
+      status: 403
+      json:
+        detail: Not enough permissions
+  - name: user B deletes user A's item
+    request:
+      method: DELETE
+      path: /api/v1/items/${ctx.item_id}
+      headers:
+        Authorization: Bearer ${ctx.user_b_token}
+    assert:
+      status: 403
+      json:
+        detail: Not enough permissions
+  - name: user A reads the item to confirm it is unchanged
+    request:
+      method: GET
+      path: /api/v1/items/${ctx.item_id}
+      headers:
+        Authorization: Bearer ${ctx.user_a_token}
+    assert:
+      status: 200
+      json:
+        title: r2t item ${ctx.case.id_short}
+teardown:
+  steps:
+    - name: delete the item
+      request:
+        method: DELETE
+        path: /api/v1/items/${ctx.item_id}
+        headers:
+          Authorization: Bearer ${ctx.user_a_token}
+      assert:
+        status: [200, 404]
+    - name: delete user A
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_a_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]
+    - name: delete user B
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_b_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

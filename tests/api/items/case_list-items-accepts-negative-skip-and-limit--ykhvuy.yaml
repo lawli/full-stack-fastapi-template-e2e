@@ -1,0 +1,56 @@
+schema: v1
+name: The item list answers a negative skip or limit with the declared response
+description: >-
+  skip and limit are declared as unconstrained integers (items.py:15; types.gen.ts:778-786), so
+  negative values are inside the declared schema and the declared answer is 200 ItemsPublic
+  (items.py:13; types.gen.ts:804). The handler passes both values straight into the SQL OFFSET and
+  LIMIT (items.py:24-26, 35-41); see defects/items-list-negative-skip-limit.md for the suspected
+  conflict. Read-only: the login is the first execute step.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/items/|boundary|negative-skip-or-limit-within-declared-schema
+mutates: false
+tags: [items, boundary]
+known_defects:
+  - ref: defects/items-list-negative-skip-limit.md
+    step: list items with limit -1
+    at: status
+steps:
+  - name: log in as the provided superuser
+    request:
+      method: POST
+      path: /api/v1/login/access-token
+      form:
+        username: ${ctx.profile.test_data.superuser.email}
+        password: ${ctx.profile.test_data.superuser.password}
+    extract:
+      admin_token: $.access_token
+    assert:
+      status: 200
+  - name: list items with limit -1
+    request:
+      method: GET
+      path: /api/v1/items/
+      params:
+        limit: -1
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      json:
+        data: "@type array"
+        count: "@type integer"
+  - name: list items with skip -1
+    request:
+      method: GET
+      path: /api/v1/items/
+      params:
+        skip: -1
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      json:
+        data: "@type array"
+        count: "@type integer"

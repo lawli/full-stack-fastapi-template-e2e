@@ -1,0 +1,15 @@
+service: api
+method: GET
+path: /docs
+conditions: []
+evidence:
+  - {file: backend/app/main.py, line: 21, kind: route}
+  - {file: development.md, line: 39, kind: requirement}
+rows:
+  - key: api|GET|/docs|happy|serves-swagger-ui-page
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: development.md, line: 39, kind: requirement}
+      - {file: backend/README.md, line: 26, kind: requirement}

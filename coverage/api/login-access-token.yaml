@@ -1,0 +1,50 @@
+service: api
+method: POST
+path: /api/v1/login/access-token
+conditions: []
+evidence:
+  - {file: backend/app/api/routes/login.py, line: 23, kind: route}
+  - {file: backend/app/api/main.py, line: 7, kind: route}
+  - {file: backend/app/main.py, line: 35, kind: route}
+  - {file: backend/app/core/config.py, line: 22, kind: route}
+  - {file: frontend/src/client/sdk.gen.ts, line: 31, kind: requirement}
+rows:
+  - key: api|POST|/api/v1/login/access-token|happy|superuser-credentials-return-bearer-token
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/login.py, line: 26, kind: declarative}
+      - {file: backend/app/models.py, line: 121, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 365, kind: requirement}
+  - key: api|POST|/api/v1/login/access-token|auth|wrong-password-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: Status 400 and its detail come only from an imperative branch; no API document declares the response for rejected credentials.
+    evidence:
+      - {file: backend/app/api/routes/login.py, line: 33, kind: implementation}
+      - {file: backend/app/crud.py, line: 53, kind: implementation}
+  - key: api|POST|/api/v1/login/access-token|auth|unknown-email-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: Status 400 and its detail come only from an imperative branch; no API document declares the response for rejected credentials.
+    evidence:
+      - {file: backend/app/api/routes/login.py, line: 33, kind: implementation}
+      - {file: backend/app/crud.py, line: 47, kind: implementation}
+  - key: api|POST|/api/v1/login/access-token|state|inactive-user-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: Status 400 "Inactive user" comes only from an imperative branch; no API document declares the response for an inactive account.
+    evidence:
+      - {file: backend/app/api/routes/login.py, line: 35, kind: implementation}
+  - key: api|POST|/api/v1/login/access-token|validation|missing-password-field
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/login.py, line: 25, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 22, kind: requirement}
+      - {file: frontend/src/client/types.gen.ts, line: 356, kind: requirement}

@@ -1,0 +1,80 @@
+schema: v1
+name: A superuser creates a user
+description: >-
+  POST /users/ takes UserCreate and returns UserPublic (users.py:55-57; models.py:14-23, 63-65;
+  types.gen.ts:525). is_active defaults to true and is_superuser to false (models.py:16-17); the
+  response model carries neither the password nor its hash. The created user is then read back by
+  id. In the reference deployment the route also sends a new-account mail to the new address.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/users/|happy|superuser-creates-user
+tags: [users, happy]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case created. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<created_id>; the user's email is r2t-<case id_short>@example.com. One
+    new-account mail addressed to that address stays in the mail catcher; it is not removed by this
+    case.
+  resources:
+    - user r2t-<case id_short>@example.com
+    - new-account mail to r2t-<case id_short>@example.com in the mail catcher
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+steps:
+  - name: create a user
+    request:
+      method: POST
+      path: /api/v1/users/
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+      body:
+        email: r2t-${ctx.case.id_short}@example.com
+        password: Pw-${ctx.case.id_short}
+        full_name: r2t created ${ctx.case.id_short}
+    extract:
+      created_id: $.id
+    assert:
+      status: 200
+      json:
+        id: "@uuid"
+        email: r2t-${ctx.case.id_short}@example.com
+        full_name: r2t created ${ctx.case.id_short}
+        is_active: true
+        is_superuser: false
+        created_at: "@iso8601"
+        password: "@absent"
+        hashed_password: "@absent"
+  - name: read the created user by id
+    request:
+      method: GET
+      path: /api/v1/users/${ctx.created_id}
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      json:
+        id: ${ctx.created_id}
+        email: r2t-${ctx.case.id_short}@example.com
+teardown:
+  steps:
+    - name: delete the created user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.created_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

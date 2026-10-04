@@ -1,0 +1,21 @@
+schema: v1
+name: The interactive API documentation is served at /docs
+description: >-
+  "Automatic interactive API documentation with Swagger UI: http://localhost:8000/docs"
+  (development.md:39; also backend/README.md:26). The application does not override the docs URL
+  (main.py:21-25). The page is asserted to be HTML that names Swagger.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/docs|happy|serves-swagger-ui-page
+tags: [docs, happy]
+steps:
+  - name: get the documentation page
+    request:
+      method: GET
+      path: /docs
+    assert:
+      status: 200
+      headers:
+        content-type: "@contains text/html"
+      text: "@regex /(?i)swagger/"

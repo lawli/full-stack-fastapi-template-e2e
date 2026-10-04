@@ -1,0 +1,123 @@
+schema: v1
+name: Deleting the own account removes the account and its items
+description: >-
+  Pending expectations: the handler deletes the user (users.py:141-142) and the models declare the
+  cascade to items (models.py:59, 97-99), but the removal is observable only through the 404
+  answers of the read routes, which come from handler branches (users.py:177-178,
+  items.py:54-55). The user and its item are created by this case.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|DELETE|/api/v1/users/me|state|deleted-account-no-longer-exists
+  - key: api|DELETE|/api/v1/users/me|state|owned-items-removed-with-account
+expectation: pending
+tags: [users-me, state]
+data:
+  isolated: true
+  cleanup: >-
+    The case deletes its own user, and with it the item, in an execute step; teardown repeats both
+    deletes as superuser and accepts 404. If anything remains, log in as a superuser and call
+    DELETE /api/v1/items/<item_id> and DELETE /api/v1/users/<user_id>; the user's email is
+    r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+    - item "r2t item <case id_short>" owned by that user
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as the case-owned user
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_token: $.access_token
+      assert:
+        status: 200
+    - name: create an item owned by the case-owned user
+      request:
+        method: POST
+        path: /api/v1/items/
+        headers:
+          Authorization: Bearer ${ctx.user_token}
+        body:
+          title: r2t item ${ctx.case.id_short}
+      extract:
+        item_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+steps:
+  - name: delete the own account
+    request:
+      method: DELETE
+      path: /api/v1/users/me
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+    assert:
+      status: 200
+  - name: read the deleted account as superuser
+    request:
+      method: GET
+      path: /api/v1/users/${ctx.user_id}
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 404
+      json:
+        detail: User not found
+  - name: read the deleted account's item as superuser
+    request:
+      method: GET
+      path: /api/v1/items/${ctx.item_id}
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 404
+      json:
+        detail: Item not found
+teardown:
+  steps:
+    - name: delete the item if it still exists
+      request:
+        method: DELETE
+        path: /api/v1/items/${ctx.item_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]
+    - name: delete the case-owned user if it still exists
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

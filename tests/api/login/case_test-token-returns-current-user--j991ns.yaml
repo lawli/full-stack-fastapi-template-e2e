@@ -1,0 +1,38 @@
+schema: v1
+name: Test-token returns the user the token belongs to
+description: >-
+  The route declares response_model UserPublic (login.py:45, models.py:63-65) and the API document
+  lists 200 UserPublic (types.gen.ts:381). The provided identity is the first superuser, so the
+  response carries its email and is_superuser true. Read-only: the login is the first execute step.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/login/test-token|happy|valid-token-returns-current-user
+mutates: false
+tags: [login, happy]
+steps:
+  - name: log in as the provided superuser
+    request:
+      method: POST
+      path: /api/v1/login/access-token
+      form:
+        username: ${ctx.profile.test_data.superuser.email}
+        password: ${ctx.profile.test_data.superuser.password}
+    extract:
+      admin_token: $.access_token
+    assert:
+      status: 200
+  - name: test the access token
+    request:
+      method: POST
+      path: /api/v1/login/test-token
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      json:
+        id: "@uuid"
+        email: ${ctx.profile.test_data.superuser.email}
+        is_active: true
+        is_superuser: true
+        hashed_password: "@absent"

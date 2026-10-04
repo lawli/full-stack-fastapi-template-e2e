@@ -1,0 +1,118 @@
+schema: v1
+name: Item creation accepts a missing description and a 255-character title
+description: >-
+  ItemBase declares description as optional with default None and title with max_length 255
+  (models.py:75-76; types.gen.ts:54-58): an item without a description is stored with a null
+  description, and a title of exactly 255 characters is the longest accepted value. The user
+  belongs to this case.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/items/|boundary|description-omitted-defaults-to-null
+  - key: api|POST|/api/v1/items/|boundary|title-max-length-accepted
+tags: [items, boundary]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes both items with their owner's token and then the user with the provided
+    superuser. If it fails, log in as a superuser and call DELETE /api/v1/items/<id> for each item
+    and DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+    - item "r2t item <case id_short>" and one item with a 255-character title, owned by that user
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as the case-owned user
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_token: $.access_token
+      assert:
+        status: 200
+steps:
+  - name: create an item without a description
+    request:
+      method: POST
+      path: /api/v1/items/
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+      body:
+        title: r2t item ${ctx.case.id_short}
+    extract:
+      plain_item_id: $.id
+    assert:
+      status: 200
+      json:
+        id: "@uuid"
+        title: r2t item ${ctx.case.id_short}
+        description: "@null"
+  - name: create an item with a 255-character title
+    request:
+      method: POST
+      path: /api/v1/items/
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+      body:
+        title: "${'t' * 255}"
+    extract:
+      long_item_id: $.id
+    assert:
+      status: 200
+      json:
+        id: "@uuid"
+        title: "${'t' * 255}"
+teardown:
+  steps:
+    - name: delete the item without a description
+      request:
+        method: DELETE
+        path: /api/v1/items/${ctx.plain_item_id}
+        headers:
+          Authorization: Bearer ${ctx.user_token}
+      assert:
+        status: [200, 404]
+    - name: delete the item with the long title
+      request:
+        method: DELETE
+        path: /api/v1/items/${ctx.long_item_id}
+        headers:
+          Authorization: Bearer ${ctx.user_token}
+      assert:
+        status: [200, 404]
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

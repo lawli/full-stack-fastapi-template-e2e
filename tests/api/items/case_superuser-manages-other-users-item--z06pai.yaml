@@ -1,0 +1,130 @@
+schema: v1
+name: A superuser reads, updates and deletes an item owned by another user
+description: >-
+  Pending expectations: the superuser exemption from the ownership check comes only from handler
+  branches (items.py:56, 89, 109). The item and its owner are created by this case; the provided
+  superuser only acts on that item.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/items/{id}|auth|superuser-reads-other-users-item
+  - key: api|PUT|/api/v1/items/{id}|auth|superuser-updates-other-users-item
+  - key: api|DELETE|/api/v1/items/{id}|auth|superuser-deletes-other-users-item
+expectation: pending
+tags: [items, auth]
+data:
+  isolated: true
+  cleanup: >-
+    The superuser deletes the item in an execute step; teardown repeats the delete with the owner's
+    token and accepts 404, then deletes the user with the provided superuser. If anything remains,
+    log in as a superuser and call DELETE /api/v1/items/<item_id> and
+    DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+    - item "r2t item <case id_short>" owned by that user
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as the case-owned user
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_token: $.access_token
+      assert:
+        status: 200
+    - name: create an item owned by the case-owned user
+      request:
+        method: POST
+        path: /api/v1/items/
+        headers:
+          Authorization: Bearer ${ctx.user_token}
+        body:
+          title: r2t item ${ctx.case.id_short}
+      extract:
+        item_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+steps:
+  - name: superuser reads the user's item
+    request:
+      method: GET
+      path: /api/v1/items/${ctx.item_id}
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      json:
+        id: ${ctx.item_id}
+        owner_id: ${ctx.user_id}
+  - name: superuser updates the user's item
+    request:
+      method: PUT
+      path: /api/v1/items/${ctx.item_id}
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+      body:
+        title: r2t edited ${ctx.case.id_short}
+    assert:
+      status: 200
+      json:
+        id: ${ctx.item_id}
+        title: r2t edited ${ctx.case.id_short}
+        owner_id: ${ctx.user_id}
+  - name: superuser deletes the user's item
+    request:
+      method: DELETE
+      path: /api/v1/items/${ctx.item_id}
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      json:
+        message: "@type string"
+teardown:
+  steps:
+    - name: delete the item if it still exists
+      request:
+        method: DELETE
+        path: /api/v1/items/${ctx.item_id}
+        headers:
+          Authorization: Bearer ${ctx.user_token}
+      assert:
+        status: [200, 404]
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

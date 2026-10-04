@@ -1,0 +1,17 @@
+service: api
+method: GET
+path: /api/v1/openapi.json
+conditions: []
+evidence:
+  - {file: backend/app/main.py, line: 23, kind: route}
+  - {file: backend/app/core/config.py, line: 22, kind: route}
+  - {file: scripts/generate-client.sh, line: 7, kind: requirement}
+rows:
+  - key: api|GET|/api/v1/openapi.json|happy|serves-openapi-document-listing-api-operations
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/main.py, line: 23, kind: declarative}
+      - {file: frontend/src/client/sdk.gen.ts, line: 21, kind: requirement}
+      - {file: scripts/generate-client.sh, line: 7, kind: requirement}

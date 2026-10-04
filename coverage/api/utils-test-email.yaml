@@ -1,0 +1,59 @@
+service: api
+method: POST
+path: /api/v1/utils/test-email/
+conditions: []
+evidence:
+  - {file: backend/app/api/routes/utils.py, line: 11, kind: route}
+  - {file: backend/app/api/routes/utils.py, line: 8, kind: route}
+  - {file: backend/app/api/main.py, line: 9, kind: route}
+  - {file: backend/app/main.py, line: 35, kind: route}
+  - {file: backend/app/core/config.py, line: 22, kind: route}
+  - {file: frontend/src/client/sdk.gen.ts, line: 270, kind: requirement}
+rows:
+  - key: api|POST|/api/v1/utils/test-email/|happy|superuser-triggers-test-email
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/utils.py, line: 14, kind: declarative}
+      - {file: backend/app/api/routes/utils.py, line: 16, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 752, kind: requirement}
+  - key: api|POST|/api/v1/utils/test-email/|dependency|test-email-delivered-to-recipient
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: That a mail addressed to email_to is sent is fixed only by imperative code; the API document describes the route only as "Test emails."
+    evidence:
+      - {file: backend/app/api/routes/utils.py, line: 21, kind: implementation}
+      - {file: backend/app/api/routes/utils.py, line: 18, kind: requirement}
+  - key: api|POST|/api/v1/utils/test-email/|auth|missing-token-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The repository declares the bearer scheme but not the response for a missing token; 401 "Not authenticated" is the pinned framework's default for OAuth2PasswordBearer.
+    evidence:
+      - {file: backend/app/api/deps.py, line: 16, kind: declarative}
+      - {file: frontend/src/client/sdk.gen.ts, line: 269, kind: requirement}
+  - key: api|POST|/api/v1/utils/test-email/|auth|normal-user-forbidden
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The route declares the superuser dependency, but status 403 and its detail come only from the dependency's imperative branch.
+    evidence:
+      - {file: backend/app/api/routes/utils.py, line: 13, kind: declarative}
+      - {file: backend/app/api/deps.py, line: 53, kind: implementation}
+  - key: api|POST|/api/v1/utils/test-email/|validation|invalid-email-to
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/utils.py, line: 16, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 743, kind: requirement}
+  - key: api|POST|/api/v1/utils/test-email/|validation|missing-email-to
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/utils.py, line: 16, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 734, kind: requirement}
+      - {file: frontend/src/client/types.gen.ts, line: 743, kind: requirement}

@@ -1,0 +1,35 @@
+schema: v1
+name: Test-token rejects a missing token and a malformed token
+description: >-
+  Pending expectations. Missing token: the repository declares the bearer scheme (deps.py:16-18) but
+  not the response; 401 "Not authenticated" is the default of the pinned framework's
+  OAuth2PasswordBearer. Malformed token: 403 "Could not validate credentials" comes only from the
+  dependency branch (deps.py:36-40). No login and no data: both requests are rejected before the
+  handler runs.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/login/test-token|auth|missing-token-rejected
+  - key: api|POST|/api/v1/login/test-token|auth|malformed-token-rejected
+expectation: pending
+mutates: false
+tags: [login, auth]
+steps:
+  - name: test-token without an Authorization header
+    request:
+      method: POST
+      path: /api/v1/login/test-token
+    assert:
+      status: 401
+      json:
+        detail: Not authenticated
+  - name: test-token with a value that is not a JWT
+    request:
+      method: POST
+      path: /api/v1/login/test-token
+      headers:
+        Authorization: Bearer r2t-not-a-jwt
+    assert:
+      status: 403
+      json:
+        detail: Could not validate credentials

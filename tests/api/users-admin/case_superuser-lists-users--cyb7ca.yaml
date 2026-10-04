@@ -1,0 +1,41 @@
+schema: v1
+name: A superuser lists users
+description: >-
+  GET /users/ declares response_model UsersPublic (users.py:35; models.py:68-70, 63-65;
+  types.gen.ts:500): a data array of UserPublic and an integer count. At least the provided
+  superuser exists. UserPublic carries no password hash. Read-only: the login is the first execute
+  step.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/users/|happy|superuser-lists-users
+mutates: false
+tags: [users, happy]
+steps:
+  - name: log in as the provided superuser
+    request:
+      method: POST
+      path: /api/v1/login/access-token
+      form:
+        username: ${ctx.profile.test_data.superuser.email}
+        password: ${ctx.profile.test_data.superuser.password}
+    extract:
+      admin_token: $.access_token
+    assert:
+      status: 200
+  - name: list users
+    request:
+      method: GET
+      path: /api/v1/users/
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      json:
+        data: "@type array"
+        count: "@number >= 1"
+        data.0.id: "@uuid"
+        data.0.email: "@type string"
+        data.0.is_active: "@type boolean"
+        data.0.is_superuser: "@type boolean"
+        data.0.hashed_password: "@absent"

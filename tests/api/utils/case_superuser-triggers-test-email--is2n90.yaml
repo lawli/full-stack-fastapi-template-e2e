@@ -1,0 +1,38 @@
+schema: v1
+name: A superuser triggers a test email
+description: >-
+  POST /utils/test-email/ declares status_code 201 and returns Message (utils.py:11-16;
+  types.gen.ts:752). The message text is not part of the contract. The route stores nothing: it has
+  no database session and only renders and sends one mail (utils.py:16-26), so the case is declared
+  read-only. That mail goes to an address unique to this run under example.com and stays in the
+  local mail catcher.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/utils/test-email/|happy|superuser-triggers-test-email
+mutates: false
+tags: [utils, happy]
+steps:
+  - name: log in as the provided superuser
+    request:
+      method: POST
+      path: /api/v1/login/access-token
+      form:
+        username: ${ctx.profile.test_data.superuser.email}
+        password: ${ctx.profile.test_data.superuser.password}
+    extract:
+      admin_token: $.access_token
+    assert:
+      status: 200
+  - name: send a test email
+    request:
+      method: POST
+      path: /api/v1/utils/test-email/
+      params:
+        email_to: r2t-${ctx.case.id_short}@example.com
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 201
+      json:
+        message: "@type string"

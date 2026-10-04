@@ -1,0 +1,25 @@
+schema: v1
+name: Superuser credentials return a bearer access token
+description: >-
+  OAuth2 password login with the provided superuser identity. The route returns the Token model
+  (login.py:26, models.py:121-123); the generated API document lists 200 Token (types.gen.ts:365).
+  Read-only: the login is the first execute step.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/login/access-token|happy|superuser-credentials-return-bearer-token
+mutates: false
+tags: [login, happy]
+steps:
+  - name: log in with the provided superuser credentials
+    request:
+      method: POST
+      path: /api/v1/login/access-token
+      form:
+        username: ${ctx.profile.test_data.superuser.email}
+        password: ${ctx.profile.test_data.superuser.password}
+    assert:
+      status: 200
+      json:
+        access_token: "@type string"
+        token_type: bearer

@@ -1,0 +1,103 @@
+schema: v1
+name: Reading, updating and deleting an unknown item id answer not found
+description: >-
+  Pending expectations: status 404 "Item not found" comes only from handler branches
+  (items.py:54-55, 87-88, 107-108). The id is derived from the case id and belongs to no item; the
+  caller is a user signed up by this case.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/items/{id}|error|unknown-id
+  - key: api|PUT|/api/v1/items/{id}|error|unknown-id
+  - key: api|DELETE|/api/v1/items/{id}|error|unknown-id
+expectation: pending
+tags: [items, error]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case signed up; deleting a user also deletes its items. If it
+    fails, log in as a superuser and call DELETE /api/v1/users/<user_id>; the user's email is
+    r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as the case-owned user
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_token: $.access_token
+      assert:
+        status: 200
+steps:
+  - name: read an unknown item id
+    request:
+      method: GET
+      path: /api/v1/items/00000000-0000-4000-8000-${ctx.case.id_short}
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+    assert:
+      status: 404
+      json:
+        detail: Item not found
+  - name: update an unknown item id
+    request:
+      method: PUT
+      path: /api/v1/items/00000000-0000-4000-8000-${ctx.case.id_short}
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+      body:
+        title: r2t ghost ${ctx.case.id_short}
+    assert:
+      status: 404
+      json:
+        detail: Item not found
+  - name: delete an unknown item id
+    request:
+      method: DELETE
+      path: /api/v1/items/00000000-0000-4000-8000-${ctx.case.id_short}
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+    assert:
+      status: 404
+      json:
+        detail: Item not found
+teardown:
+  steps:
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

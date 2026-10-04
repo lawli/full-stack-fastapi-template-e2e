@@ -1,0 +1,56 @@
+service: api
+method: GET
+path: /api/v1/items/{id}
+conditions: []
+evidence:
+  - {file: backend/app/api/routes/items.py, line: 48, kind: route}
+  - {file: backend/app/api/routes/items.py, line: 10, kind: route}
+  - {file: backend/app/api/main.py, line: 10, kind: route}
+  - {file: backend/app/main.py, line: 35, kind: route}
+  - {file: backend/app/core/config.py, line: 22, kind: route}
+  - {file: frontend/src/client/sdk.gen.ts, line: 343, kind: requirement}
+rows:
+  - key: api|GET|/api/v1/items/{id}|happy|owner-reads-item
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 48, kind: declarative}
+      - {file: backend/app/models.py, line: 104, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 889, kind: requirement}
+  - key: api|GET|/api/v1/items/{id}|auth|missing-token-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The repository declares the bearer scheme but not the response for a missing token; 401 "Not authenticated" is the pinned framework's default for OAuth2PasswordBearer.
+    evidence:
+      - {file: backend/app/api/deps.py, line: 16, kind: declarative}
+      - {file: frontend/src/client/sdk.gen.ts, line: 342, kind: requirement}
+  - key: api|GET|/api/v1/items/{id}|auth|other-user-forbidden
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: Status 403 "Not enough permissions" comes only from an imperative branch; no API document declares who may read an item.
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 56, kind: implementation}
+  - key: api|GET|/api/v1/items/{id}|auth|superuser-reads-other-users-item
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The superuser exemption from the ownership check is fixed only by an imperative branch.
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 56, kind: implementation}
+  - key: api|GET|/api/v1/items/{id}|error|unknown-id
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: Status 404 "Item not found" comes only from an imperative branch; no API document declares it.
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 54, kind: implementation}
+  - key: api|GET|/api/v1/items/{id}|validation|malformed-uuid
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 49, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 880, kind: requirement}

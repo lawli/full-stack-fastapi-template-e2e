@@ -1,0 +1,75 @@
+schema: v1
+name: A superuser gets the recovery mail HTML for a registered user
+description: >-
+  The route declares response_class HTMLResponse (login.py:103) and the API document lists a 200
+  text response (types.gen.ts:466, sdk.gen.ts:91). The wording of the HTML is not part of the
+  contract, so only the media type and the presence of an HTML document are asserted. The route
+  only reads the user and renders a template (login.py:105-123). Known defect: the service drops
+  the connection instead of answering
+  (defects/password-recovery-html-content-invalid-header-name.md). The marker below names that
+  result (`at: response`), so the case is reported as XFAIL while the connection is dropped.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/password-recovery-html-content/{email}|happy|superuser-gets-recovery-html
+tags: [password-recovery, happy]
+known_defects:
+  - ref: defects/password-recovery-html-content-invalid-header-name.md
+    step: get the recovery HTML for the case-owned user
+    at: response
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case signed up. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+steps:
+  - name: get the recovery HTML for the case-owned user
+    request:
+      method: POST
+      path: /api/v1/password-recovery-html-content/r2t-${ctx.case.id_short}@example.com
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      headers:
+        content-type: "@contains text/html"
+      text: "@regex /(?i)<html/"
+teardown:
+  steps:
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

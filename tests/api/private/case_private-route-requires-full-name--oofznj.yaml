@@ -1,0 +1,70 @@
+schema: v1
+name: The private route rejects a body without full_name
+description: >-
+  PrivateUserCreate declares full_name as a required string (private.py:19; types.gen.ts:154) and
+  the API document lists 422 HTTPValidationError (types.gen.ts:931-936). The request reuses the
+  email of a user this case signed up, so it could not add a second record even if the check were
+  missing.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/private/users/|validation|missing-full-name
+tags: [private, validation]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case signed up. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+steps:
+  - name: create a user through the private route without full_name
+    request:
+      method: POST
+      path: /api/v1/private/users/
+      body:
+        email: r2t-${ctx.case.id_short}@example.com
+        password: Pw-${ctx.case.id_short}
+    assert:
+      status: 422
+      json:
+        detail: "@type array"
+        detail.0.loc: "@contains full_name"
+        detail.0.type: "@type string"
+teardown:
+  steps:
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

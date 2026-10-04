@@ -1,0 +1,10 @@
+services:
+  api:
+    base_url: ${LOCAL_API_URL}
+  mailpit:
+    base_url: ${LOCAL_MAILPIT_URL}
+environment: non-production
+test_data:
+  superuser:
+    email: ${LOCAL_API_SUPERUSER_EMAIL}
+    password: ${LOCAL_API_SUPERUSER_PASSWORD}

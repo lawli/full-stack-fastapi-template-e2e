@@ -1,0 +1,93 @@
+schema: v1
+name: A superuser reads another user by id and a user reads its own record
+description: >-
+  GET /users/{user_id} declares response_model UserPublic (users.py:162; models.py:63-65;
+  types.gen.ts:692). The user read here is signed up by this case.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/users/{user_id}|happy|superuser-reads-another-user
+  - key: api|GET|/api/v1/users/{user_id}|happy|user-reads-own-record
+tags: [users, happy]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case signed up. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as the case-owned user
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_token: $.access_token
+      assert:
+        status: 200
+steps:
+  - name: read the user as superuser
+    request:
+      method: GET
+      path: /api/v1/users/${ctx.user_id}
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      json:
+        id: ${ctx.user_id}
+        email: r2t-${ctx.case.id_short}@example.com
+        full_name: r2t ${ctx.case.id_short}
+        is_active: true
+        is_superuser: false
+        hashed_password: "@absent"
+  - name: read the user as the user itself
+    request:
+      method: GET
+      path: /api/v1/users/${ctx.user_id}
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+    assert:
+      status: 200
+      json:
+        id: ${ctx.user_id}
+        email: r2t-${ctx.case.id_short}@example.com
+teardown:
+  steps:
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

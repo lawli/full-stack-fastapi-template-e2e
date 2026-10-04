@@ -1,0 +1,72 @@
+service: api
+method: POST
+path: /api/v1/items/
+conditions: []
+evidence:
+  - {file: backend/app/api/routes/items.py, line: 61, kind: route}
+  - {file: backend/app/api/routes/items.py, line: 10, kind: route}
+  - {file: backend/app/api/main.py, line: 10, kind: route}
+  - {file: backend/app/main.py, line: 35, kind: route}
+  - {file: backend/app/core/config.py, line: 22, kind: route}
+  - {file: frontend/src/client/sdk.gen.ts, line: 311, kind: requirement}
+rows:
+  - key: api|POST|/api/v1/items/|happy|creates-item-owned-by-caller
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 61, kind: declarative}
+      - {file: backend/app/models.py, line: 80, kind: declarative}
+      - {file: backend/app/models.py, line: 104, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 829, kind: requirement}
+  - key: api|POST|/api/v1/items/|boundary|description-omitted-defaults-to-null
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/models.py, line: 76, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 58, kind: requirement}
+  - key: api|POST|/api/v1/items/|boundary|title-max-length-accepted
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/models.py, line: 75, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 829, kind: requirement}
+  - key: api|POST|/api/v1/items/|validation|title-too-long
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/models.py, line: 75, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 820, kind: requirement}
+  - key: api|POST|/api/v1/items/|validation|empty-title
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/models.py, line: 75, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 820, kind: requirement}
+  - key: api|POST|/api/v1/items/|validation|missing-title
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/models.py, line: 75, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 54, kind: requirement}
+      - {file: frontend/src/client/types.gen.ts, line: 820, kind: requirement}
+  - key: api|POST|/api/v1/items/|validation|description-too-long
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/models.py, line: 76, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 820, kind: requirement}
+  - key: api|POST|/api/v1/items/|auth|missing-token-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The repository declares the bearer scheme but not the response for a missing token; 401 "Not authenticated" is the pinned framework's default for OAuth2PasswordBearer.
+    evidence:
+      - {file: backend/app/api/deps.py, line: 16, kind: declarative}
+      - {file: frontend/src/client/sdk.gen.ts, line: 310, kind: requirement}

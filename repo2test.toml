@@ -1,0 +1,16 @@
+format = 1
+[target]
+path = "../full-stack-fastapi-template"
+[reference]
+ref = "1762adac607a1b29cfc4da129557780beea71616"
+commit = "1762adac607a1b29cfc4da129557780beea71616"
+estimated = false
+evidence = "user-selected deployed reference"
+[paths]
+tests = "tests"
+profiles = "profiles"
+coverage = "coverage"
+source = ".source"
+skill = ".claude/skills/repo2test-workspace/SKILL.md"
+[test_data]
+keys = ["superuser"]

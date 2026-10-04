@@ -1,0 +1,12 @@
+
+/vendor/*.whl @lawli
+/uv.lock @lawli
+/pyproject.toml @lawli
+/.gitattributes @lawli
+/runner.toml @lawli
+/.claude/skills/repo2test-workspace/ @lawli
+/tools/ @lawli
+/.github/workflows/ @lawli
+/.gitlab-ci.yml @lawli
+/.github/CODEOWNERS @lawli
+

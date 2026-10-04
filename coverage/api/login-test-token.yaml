@@ -1,0 +1,48 @@
+service: api
+method: POST
+path: /api/v1/login/test-token
+conditions: []
+evidence:
+  - {file: backend/app/api/routes/login.py, line: 45, kind: route}
+  - {file: backend/app/api/main.py, line: 7, kind: route}
+  - {file: backend/app/main.py, line: 35, kind: route}
+  - {file: backend/app/core/config.py, line: 22, kind: route}
+  - {file: frontend/src/client/sdk.gen.ts, line: 49, kind: requirement}
+rows:
+  - key: api|POST|/api/v1/login/test-token|happy|valid-token-returns-current-user
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/login.py, line: 45, kind: declarative}
+      - {file: backend/app/models.py, line: 63, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 381, kind: requirement}
+  - key: api|POST|/api/v1/login/test-token|auth|missing-token-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The repository declares the bearer scheme but not the response for a missing token; 401 "Not authenticated" is the pinned framework's default for OAuth2PasswordBearer.
+    evidence:
+      - {file: backend/app/api/deps.py, line: 16, kind: declarative}
+      - {file: frontend/src/client/sdk.gen.ts, line: 48, kind: requirement}
+  - key: api|POST|/api/v1/login/test-token|auth|malformed-token-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: Status 403 "Could not validate credentials" comes only from an imperative branch; no API document declares it.
+    evidence:
+      - {file: backend/app/api/deps.py, line: 36, kind: implementation}
+  - key: api|POST|/api/v1/login/test-token|auth|token-of-deleted-user-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: Status 404 "User not found" for a token whose user no longer exists comes only from an imperative branch.
+    evidence:
+      - {file: backend/app/api/deps.py, line: 42, kind: implementation}
+  - key: api|POST|/api/v1/login/test-token|auth|token-of-deactivated-user-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: Status 400 "Inactive user" for a token whose user was deactivated comes only from an imperative branch.
+    evidence:
+      - {file: backend/app/api/deps.py, line: 44, kind: implementation}

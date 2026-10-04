@@ -1,0 +1,34 @@
+schema: v1
+name: The recovery HTML preview answers not found for an unregistered email
+description: >-
+  Pending expectation: status 404 and the detail text come only from the handler branch
+  (login.py:111-115). Read-only: the login is the first execute step and the route only reads.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/password-recovery-html-content/{email}|error|unknown-email-not-found
+expectation: pending
+mutates: false
+tags: [password-recovery, error]
+steps:
+  - name: log in as the provided superuser
+    request:
+      method: POST
+      path: /api/v1/login/access-token
+      form:
+        username: ${ctx.profile.test_data.superuser.email}
+        password: ${ctx.profile.test_data.superuser.password}
+    extract:
+      admin_token: $.access_token
+    assert:
+      status: 200
+  - name: get the recovery HTML for an unregistered email
+    request:
+      method: POST
+      path: /api/v1/password-recovery-html-content/r2t-none-${ctx.case.id_short}@example.com
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 404
+      json:
+        detail: The user with this username does not exist in the system.

@@ -1,0 +1,20 @@
+schema: v1
+name: The health check answers with a boolean
+description: >-
+  GET /utils/health-check/ is declared to return bool (utils.py:29-30) and the API document lists
+  200 boolean (types.gen.ts:764-771). No authentication is declared for this route. Which boolean a
+  healthy service returns is covered by a separate pending case.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/utils/health-check/|happy|responds-with-boolean
+tags: [utils, happy]
+steps:
+  - name: call the health check
+    request:
+      method: GET
+      path: /api/v1/utils/health-check/
+    assert:
+      status: 200
+      json:
+        $: "@type boolean"

@@ -1,0 +1,14 @@
+service: api
+method: GET
+path: /redoc
+conditions: []
+evidence:
+  - {file: backend/app/main.py, line: 21, kind: route}
+rows:
+  - key: api|GET|/redoc|happy|serves-redoc-page
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The route exists only as a default of the FastAPI constructor (no redoc_url is passed); nothing in the repository mentions it or states what it serves.
+    evidence:
+      - {file: backend/app/main.py, line: 21, kind: implementation}

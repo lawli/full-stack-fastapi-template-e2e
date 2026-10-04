@@ -1,0 +1,47 @@
+schema: v1
+name: The OpenAPI document is served and lists every API operation
+description: >-
+  The application sets openapi_url to <API_V1_STR>/openapi.json (main.py:23; config.py:22). The
+  repository generates its checked-in client from this document (scripts/generate-client.sh:7), and
+  that client names the 23 operations asserted here (frontend/src/client/sdk.gen.ts). The private
+  operation is listed because the reference deployment runs with FASTAPI_ENV=development
+  (api/main.py:13-14). Once executed, this case is also a runtime cross-check of the endpoint
+  inventory. The title comes from deployment settings, so only its type is asserted.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/openapi.json|happy|serves-openapi-document-listing-api-operations
+tags: [docs, happy]
+steps:
+  - name: get the OpenAPI document
+    request:
+      method: GET
+      path: /api/v1/openapi.json
+    assert:
+      status: 200
+      json:
+        openapi: "@type string"
+        info.title: "@type string"
+        "paths./api/v1/login/access-token.post": "@type object"
+        "paths./api/v1/login/test-token.post": "@type object"
+        "paths./api/v1/password-recovery/{email}.post": "@type object"
+        "paths./api/v1/reset-password/.post": "@type object"
+        "paths./api/v1/password-recovery-html-content/{email}.post": "@type object"
+        "paths./api/v1/users/.get": "@type object"
+        "paths./api/v1/users/.post": "@type object"
+        "paths./api/v1/users/me.get": "@type object"
+        "paths./api/v1/users/me.patch": "@type object"
+        "paths./api/v1/users/me.delete": "@type object"
+        "paths./api/v1/users/me/password.patch": "@type object"
+        "paths./api/v1/users/signup.post": "@type object"
+        "paths./api/v1/users/{user_id}.get": "@type object"
+        "paths./api/v1/users/{user_id}.patch": "@type object"
+        "paths./api/v1/users/{user_id}.delete": "@type object"
+        "paths./api/v1/utils/test-email/.post": "@type object"
+        "paths./api/v1/utils/health-check/.get": "@type object"
+        "paths./api/v1/items/.get": "@type object"
+        "paths./api/v1/items/.post": "@type object"
+        "paths./api/v1/items/{id}.get": "@type object"
+        "paths./api/v1/items/{id}.put": "@type object"
+        "paths./api/v1/items/{id}.delete": "@type object"
+        "paths./api/v1/private/users/.post": "@type object"

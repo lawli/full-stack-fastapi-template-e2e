@@ -1,0 +1,112 @@
+schema: v1
+name: A normal user cannot read another user or probe unknown ids
+description: >-
+  Pending expectations: status 403 and its detail come only from the handler branch
+  (users.py:172-176); that an unknown id also answers 403 for a normal user follows from the branch
+  order (the privilege check at users.py:172 runs before the not-found check at users.py:177). Both
+  users are signed up by this case; the unknown id is derived from the case id.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/users/{user_id}|auth|normal-user-reads-another-user-forbidden
+  - key: api|GET|/api/v1/users/{user_id}|auth|normal-user-unknown-id-forbidden
+expectation: pending
+tags: [users, auth]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the two users this case signed up. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<id> for each; their emails are r2t-a-<case id_short>@example.com and
+    r2t-b-<case id_short>@example.com.
+  resources:
+    - user r2t-a-<case id_short>@example.com
+    - user r2t-b-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up user A
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-a-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_a_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: sign up user B
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-b-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_b_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as user A
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-a-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_a_token: $.access_token
+      assert:
+        status: 200
+steps:
+  - name: user A reads user B
+    request:
+      method: GET
+      path: /api/v1/users/${ctx.user_b_id}
+      headers:
+        Authorization: Bearer ${ctx.user_a_token}
+    assert:
+      status: 403
+      json:
+        detail: The user doesn't have enough privileges
+  - name: user A reads an id that does not exist
+    request:
+      method: GET
+      path: /api/v1/users/00000000-0000-4000-8000-${ctx.case.id_short}
+      headers:
+        Authorization: Bearer ${ctx.user_a_token}
+    assert:
+      status: 403
+      json:
+        detail: The user doesn't have enough privileges
+teardown:
+  steps:
+    - name: delete user A
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_a_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]
+    - name: delete user B
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_b_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

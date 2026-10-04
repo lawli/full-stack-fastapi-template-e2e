@@ -1,0 +1,87 @@
+schema: v1
+name: Updating the own profile with an explicit null email answers with the declared response
+description: >-
+  UserUpdateMe declares email as an email address or null (models.py:43; types.gen.ts:300), so an
+  explicit null is inside the declared schema and the declared answer is 200 UserPublic, whose
+  email is a required string (users.py:81; models.py:15, 63; types.gen.ts:222, 582). The handler
+  copies every sent field onto the row (users.py:95-98); see
+  defects/users-me-update-explicit-null-email.md for the suspected conflict. The user belongs to
+  this case.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|PATCH|/api/v1/users/me|boundary|explicit-null-email-within-declared-schema
+tags: [users-me, boundary]
+known_defects:
+  - ref: defects/users-me-update-explicit-null-email.md
+    step: update the own profile with an explicit null email
+    at: status
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case signed up. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as the case-owned user
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_token: $.access_token
+      assert:
+        status: 200
+steps:
+  - name: update the own profile with an explicit null email
+    request:
+      method: PATCH
+      path: /api/v1/users/me
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+      body:
+        email: null
+    assert:
+      status: 200
+      json:
+        id: ${ctx.user_id}
+        email: "@type string"
+teardown:
+  steps:
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

@@ -1,0 +1,50 @@
+schema: v1
+name: The test email is delivered to the requested recipient
+description: >-
+  Pending expectation: that a mail addressed to email_to is sent comes only from the handler
+  (utils.py:20-25); the API document describes the route only as "Test emails." The mail cannot be
+  observed through the API under test, so the local mail catcher is read with the search call the
+  repository's own end-to-end helper uses (frontend/tests/utils/mailpit.ts:20). The handler sends
+  before it answers; the catcher is only read. The route stores nothing, so the case is declared
+  read-only; its one mail to a run-unique example.com address stays in the catcher.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/utils/test-email/|dependency|test-email-delivered-to-recipient
+expectation: pending
+mutates: false
+tags: [utils, dependency, mail]
+steps:
+  - name: log in as the provided superuser
+    request:
+      method: POST
+      path: /api/v1/login/access-token
+      form:
+        username: ${ctx.profile.test_data.superuser.email}
+        password: ${ctx.profile.test_data.superuser.password}
+    extract:
+      admin_token: $.access_token
+    assert:
+      status: 200
+  - name: send a test email
+    request:
+      method: POST
+      path: /api/v1/utils/test-email/
+      params:
+        email_to: r2t-${ctx.case.id_short}@example.com
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 201
+  - name: find the test email for the recipient
+    service: mailpit
+    request:
+      method: GET
+      path: /api/v1/search
+      params:
+        query: "to:r2t-${ctx.case.id_short}@example.com"
+        limit: 1
+    assert:
+      status: 200
+      json:
+        messages: "@len 1"

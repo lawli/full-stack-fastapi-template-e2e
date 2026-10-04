@@ -1,0 +1,154 @@
+schema: v1
+name: skip and limit window the item list while count reports the total
+description: >-
+  Pending expectation: skip and limit are declared (items.py:15), but that they window the list and
+  that count stays the total come only from the query the handler builds (items.py:29-41). The
+  caller is a normal user signed up by this case who owns exactly the two items created here, so
+  the numbers are deterministic.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/items/|pagination|skip-and-limit-window
+expectation: pending
+tags: [items, pagination]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes both items with their owner's token and then the user with the provided
+    superuser. If it fails, log in as a superuser and call DELETE /api/v1/items/<id> for each item
+    and DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+    - items "r2t item 1 <case id_short>" and "r2t item 2 <case id_short>" owned by that user
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as the case-owned user
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_token: $.access_token
+      assert:
+        status: 200
+    - name: create the first item
+      request:
+        method: POST
+        path: /api/v1/items/
+        headers:
+          Authorization: Bearer ${ctx.user_token}
+        body:
+          title: r2t item 1 ${ctx.case.id_short}
+      extract:
+        item_1_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: create the second item
+      request:
+        method: POST
+        path: /api/v1/items/
+        headers:
+          Authorization: Bearer ${ctx.user_token}
+        body:
+          title: r2t item 2 ${ctx.case.id_short}
+      extract:
+        item_2_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+steps:
+  - name: list with limit 1
+    request:
+      method: GET
+      path: /api/v1/items/
+      params:
+        limit: 1
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+    assert:
+      status: 200
+      json:
+        data: "@len 1"
+        count: 2
+  - name: list with skip 1
+    request:
+      method: GET
+      path: /api/v1/items/
+      params:
+        skip: 1
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+    assert:
+      status: 200
+      json:
+        data: "@len 1"
+        count: 2
+  - name: list with skip 2
+    request:
+      method: GET
+      path: /api/v1/items/
+      params:
+        skip: 2
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+    assert:
+      status: 200
+      json:
+        data: "@len 0"
+        count: 2
+teardown:
+  steps:
+    - name: delete the first item
+      request:
+        method: DELETE
+        path: /api/v1/items/${ctx.item_1_id}
+        headers:
+          Authorization: Bearer ${ctx.user_token}
+      assert:
+        status: [200, 404]
+    - name: delete the second item
+      request:
+        method: DELETE
+        path: /api/v1/items/${ctx.item_2_id}
+        headers:
+          Authorization: Bearer ${ctx.user_token}
+      assert:
+        status: [200, 404]
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

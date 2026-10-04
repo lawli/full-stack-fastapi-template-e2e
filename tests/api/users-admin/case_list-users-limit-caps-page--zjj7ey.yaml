@@ -1,0 +1,37 @@
+schema: v1
+name: limit caps the page of the user list while count reports the total
+description: >-
+  Pending expectation: the limit parameter is declared (users.py:37), but that it caps the page and
+  that count is the total come only from the query the handler builds (users.py:42-47). Read-only.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/users/|pagination|limit-caps-page-size
+expectation: pending
+mutates: false
+tags: [users, pagination]
+steps:
+  - name: log in as the provided superuser
+    request:
+      method: POST
+      path: /api/v1/login/access-token
+      form:
+        username: ${ctx.profile.test_data.superuser.email}
+        password: ${ctx.profile.test_data.superuser.password}
+    extract:
+      admin_token: $.access_token
+    assert:
+      status: 200
+  - name: list users with limit 1
+    request:
+      method: GET
+      path: /api/v1/users/
+      params:
+        limit: 1
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      json:
+        data: "@len 1"
+        count: "@number >= 1"

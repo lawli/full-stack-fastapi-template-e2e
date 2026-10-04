@@ -1,0 +1,39 @@
+schema: v1
+name: The superuser reads its own profile
+description: >-
+  GET /users/me declares response_model UserPublic (users.py:124; models.py:63-65;
+  types.gen.ts:557). The provided identity is the first superuser, so the profile carries its email
+  and is_superuser true; UserPublic carries no password hash. Read-only: the login is the first
+  execute step.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/users/me|happy|superuser-reads-own-profile
+mutates: false
+tags: [users-me, happy]
+steps:
+  - name: log in as the provided superuser
+    request:
+      method: POST
+      path: /api/v1/login/access-token
+      form:
+        username: ${ctx.profile.test_data.superuser.email}
+        password: ${ctx.profile.test_data.superuser.password}
+    extract:
+      admin_token: $.access_token
+    assert:
+      status: 200
+  - name: read the own profile
+    request:
+      method: GET
+      path: /api/v1/users/me
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 200
+      json:
+        id: "@uuid"
+        email: ${ctx.profile.test_data.superuser.email}
+        is_active: true
+        is_superuser: true
+        hashed_password: "@absent"

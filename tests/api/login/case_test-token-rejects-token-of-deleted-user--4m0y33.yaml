@@ -1,0 +1,87 @@
+schema: v1
+name: A token whose user was deleted is rejected
+description: >-
+  Pending expectation: 404 "User not found" for a valid token whose user no longer exists comes only
+  from the dependency branch (deps.py:41-43). The user is signed up, logged in and deleted by this
+  case, so only case-owned data is removed.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/login/test-token|auth|token-of-deleted-user-rejected
+expectation: pending
+tags: [login, auth]
+data:
+  isolated: true
+  cleanup: >-
+    The case deletes its own user during setup; teardown repeats the delete and accepts 404. If the
+    user still exists, log in as a superuser and call DELETE /api/v1/users/<user_id>; its email is
+    r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+    - name: log in as the case-owned user
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+      extract:
+        user_token: $.access_token
+      assert:
+        status: 200
+    - name: delete the case-owned user as superuser
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: 200
+steps:
+  - name: test the token of the deleted user
+    request:
+      method: POST
+      path: /api/v1/login/test-token
+      headers:
+        Authorization: Bearer ${ctx.user_token}
+    assert:
+      status: 404
+      json:
+        detail: User not found
+teardown:
+  steps:
+    - name: delete the case-owned user if it still exists
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

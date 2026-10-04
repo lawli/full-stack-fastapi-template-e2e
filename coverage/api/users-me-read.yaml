@@ -1,0 +1,36 @@
+service: api
+method: GET
+path: /api/v1/users/me
+conditions: []
+evidence:
+  - {file: backend/app/api/routes/users.py, line: 124, kind: route}
+  - {file: backend/app/api/routes/users.py, line: 29, kind: route}
+  - {file: backend/app/api/main.py, line: 8, kind: route}
+  - {file: backend/app/main.py, line: 35, kind: route}
+  - {file: backend/app/core/config.py, line: 22, kind: route}
+  - {file: frontend/src/client/sdk.gen.ts, line: 155, kind: requirement}
+rows:
+  - key: api|GET|/api/v1/users/me|happy|superuser-reads-own-profile
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/users.py, line: 124, kind: declarative}
+      - {file: backend/app/models.py, line: 63, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 557, kind: requirement}
+  - key: api|GET|/api/v1/users/me|happy|registered-user-reads-own-profile
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/users.py, line: 124, kind: declarative}
+      - {file: backend/app/models.py, line: 63, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 557, kind: requirement}
+  - key: api|GET|/api/v1/users/me|auth|missing-token-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The repository declares the bearer scheme but not the response for a missing token; 401 "Not authenticated" is the pinned framework's default for OAuth2PasswordBearer.
+    evidence:
+      - {file: backend/app/api/deps.py, line: 16, kind: declarative}
+      - {file: frontend/src/client/sdk.gen.ts, line: 154, kind: requirement}

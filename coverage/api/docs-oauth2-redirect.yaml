@@ -1,0 +1,14 @@
+service: api
+method: GET
+path: /docs/oauth2-redirect
+conditions: []
+evidence:
+  - {file: backend/app/main.py, line: 21, kind: route}
+rows:
+  - key: api|GET|/docs/oauth2-redirect|happy|serves-oauth2-redirect-page
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The route exists only as a default of the FastAPI constructor (no swagger_ui_oauth2_redirect_url is passed); nothing in the repository mentions it or states what it serves.
+    evidence:
+      - {file: backend/app/main.py, line: 21, kind: implementation}

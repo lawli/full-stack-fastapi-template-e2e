@@ -1,0 +1,68 @@
+schema: v1
+name: Signup rejects an email that is already registered
+description: >-
+  Pending expectation: the model declares email unique (models.py:15), but status 400 and the detail
+  text come only from the handler branch (users.py:151-156). The existing email belongs to a user
+  signed up by this case.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|POST|/api/v1/users/signup|state|duplicate-email-rejected
+expectation: pending
+tags: [signup, state]
+data:
+  isolated: true
+  cleanup: >-
+    Teardown deletes the user this case signed up. If it fails, log in as a superuser and call
+    DELETE /api/v1/users/<user_id>; the user's email is r2t-<case id_short>@example.com.
+  resources:
+    - user r2t-<case id_short>@example.com
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+    - name: sign up the case-owned user
+      request:
+        method: POST
+        path: /api/v1/users/signup
+        body:
+          email: r2t-${ctx.case.id_short}@example.com
+          password: Pw-${ctx.case.id_short}
+          full_name: r2t ${ctx.case.id_short}
+      extract:
+        user_id: $.id
+      assert:
+        status: 200
+        json:
+          id: "@uuid"
+steps:
+  - name: sign up again with the same email
+    request:
+      method: POST
+      path: /api/v1/users/signup
+      body:
+        email: r2t-${ctx.case.id_short}@example.com
+        password: Pw-${ctx.case.id_short}
+    assert:
+      status: 400
+      json:
+        detail: The user with this email already exists in the system
+teardown:
+  steps:
+    - name: delete the case-owned user
+      request:
+        method: DELETE
+        path: /api/v1/users/${ctx.user_id}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [200, 404]

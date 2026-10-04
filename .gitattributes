@@ -1,0 +1,7 @@
+
+# repo2test pinned assets
+/.claude/skills/repo2test-workspace/** -text
+/tools/entry/** -text
+/tools/install_entry.py -text
+/vendor/*.whl -text
+# end repo2test pinned assets

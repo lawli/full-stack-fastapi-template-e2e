@@ -1,0 +1,9 @@
+
+[runner]
+
+wheel = "vendor/apitest-0.2.4-py3-none-any.whl"
+version = "0.2.4"
+sha256 = "7bf56e3eacef434760d4630f15413bd102154110674fe329f7836aefe5fe8892"
+source_commit = "441dff61897c22d51cb58c5f34a438e1f03a9628"
+source_dirty = false
+source_sha256 = "2ee5ec7139f3097b2813ffbaea97e9537ac4a73e804fd39d1f87410dd9f92901"

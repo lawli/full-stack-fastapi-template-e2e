@@ -1,0 +1,1 @@
+For repo2test test authoring, environment setup, suite execution or maintenance, read `.claude/skills/repo2test-workspace/SKILL.md` and use the workspace's locked runner. Before authoring or running cases, run `uv sync --locked` and `uv run --locked apitest workspace doctor` here and continue only when doctor passes. Target business source is read-only.

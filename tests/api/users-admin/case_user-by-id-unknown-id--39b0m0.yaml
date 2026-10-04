@@ -1,0 +1,78 @@
+schema: v1
+name: Reading, updating and deleting an unknown user id answer not found
+description: >-
+  Pending expectations: status 404 and the detail texts come only from handler branches
+  (users.py:177-178, 197-202, 221-223). The id is derived from the case id and belongs to no user,
+  so the requests cannot touch existing data and nothing is created. Because the case sends PATCH
+  and DELETE it carries a data plan; its teardown only checks that the id still does not exist.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/users/{user_id}|error|unknown-id-as-superuser
+  - key: api|PATCH|/api/v1/users/{user_id}|error|unknown-id
+  - key: api|DELETE|/api/v1/users/{user_id}|error|unknown-id
+expectation: pending
+tags: [users, error]
+data:
+  isolated: true
+  cleanup: >-
+    Nothing is created. Teardown reads the id 00000000-0000-4000-8000-<case id_short> and expects
+    404. If that read finds a user, log in as a superuser and call DELETE /api/v1/users/<that id>.
+  resources:
+    - no record; user id 00000000-0000-4000-8000-<case id_short> must stay unused
+setup:
+  steps:
+    - name: log in as the provided superuser
+      request:
+        method: POST
+        path: /api/v1/login/access-token
+        form:
+          username: ${ctx.profile.test_data.superuser.email}
+          password: ${ctx.profile.test_data.superuser.password}
+      extract:
+        admin_token: $.access_token
+      assert:
+        status: 200
+steps:
+  - name: read an unknown user id
+    request:
+      method: GET
+      path: /api/v1/users/00000000-0000-4000-8000-${ctx.case.id_short}
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 404
+      json:
+        detail: User not found
+  - name: update an unknown user id
+    request:
+      method: PATCH
+      path: /api/v1/users/00000000-0000-4000-8000-${ctx.case.id_short}
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+      body:
+        full_name: r2t ghost ${ctx.case.id_short}
+    assert:
+      status: 404
+      json:
+        detail: The user with this id does not exist in the system
+  - name: delete an unknown user id
+    request:
+      method: DELETE
+      path: /api/v1/users/00000000-0000-4000-8000-${ctx.case.id_short}
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 404
+      json:
+        detail: User not found
+teardown:
+  steps:
+    - name: confirm the unknown user id still does not exist
+      request:
+        method: GET
+        path: /api/v1/users/00000000-0000-4000-8000-${ctx.case.id_short}
+        headers:
+          Authorization: Bearer ${ctx.admin_token}
+      assert:
+        status: [404]

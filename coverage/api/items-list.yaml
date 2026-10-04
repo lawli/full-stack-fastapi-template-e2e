@@ -1,0 +1,69 @@
+service: api
+method: GET
+path: /api/v1/items/
+conditions: []
+evidence:
+  - {file: backend/app/api/routes/items.py, line: 13, kind: route}
+  - {file: backend/app/api/routes/items.py, line: 10, kind: route}
+  - {file: backend/app/api/main.py, line: 10, kind: route}
+  - {file: backend/app/main.py, line: 35, kind: route}
+  - {file: backend/app/core/config.py, line: 22, kind: route}
+  - {file: frontend/src/client/sdk.gen.ts, line: 297, kind: requirement}
+rows:
+  - key: api|GET|/api/v1/items/|happy|authenticated-user-lists-items
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 13, kind: declarative}
+      - {file: backend/app/models.py, line: 110, kind: declarative}
+      - {file: backend/app/models.py, line: 104, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 804, kind: requirement}
+  - key: api|GET|/api/v1/items/|auth|missing-token-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The repository declares the bearer scheme but not the response for a missing token; 401 "Not authenticated" is the pinned framework's default for OAuth2PasswordBearer.
+    evidence:
+      - {file: backend/app/api/deps.py, line: 16, kind: declarative}
+      - {file: frontend/src/client/sdk.gen.ts, line: 296, kind: requirement}
+  - key: api|GET|/api/v1/items/|auth|normal-user-sees-only-own-items
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: Restricting a normal user's list and count to their own items is fixed only by an imperative branch; no API document states the scoping.
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 28, kind: implementation}
+      - {file: backend/app/api/routes/items.py, line: 37, kind: implementation}
+  - key: api|GET|/api/v1/items/|auth|superuser-sees-items-of-all-owners
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: That a superuser's list is not restricted to their own items is fixed only by an imperative branch; no API document states the scoping.
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 21, kind: implementation}
+  - key: api|GET|/api/v1/items/|pagination|skip-and-limit-window
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The skip and limit parameters are declared, but that they window the list while count reports the total is fixed only by the query the handler builds.
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 39, kind: implementation}
+      - {file: backend/app/api/routes/items.py, line: 30, kind: implementation}
+  - key: api|GET|/api/v1/items/|validation|non-integer-skip
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 15, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 782, kind: requirement}
+      - {file: frontend/src/client/types.gen.ts, line: 795, kind: requirement}
+  - key: api|GET|/api/v1/items/|boundary|negative-skip-or-limit-within-declared-schema
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/items.py, line: 15, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 782, kind: requirement}
+      - {file: frontend/src/client/types.gen.ts, line: 804, kind: requirement}
+      - {file: backend/app/api/routes/items.py, line: 25, kind: implementation}

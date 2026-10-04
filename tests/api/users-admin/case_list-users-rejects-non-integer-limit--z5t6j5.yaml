@@ -1,0 +1,37 @@
+schema: v1
+name: The user list rejects a non-integer limit
+description: >-
+  limit is declared as an integer query parameter (users.py:37; types.gen.ts:482) and the API
+  document lists 422 HTTPValidationError (types.gen.ts:487-492). Read-only.
+service: api
+source_commit: 1762adac607a1b29cfc4da129557780beea71616
+covers:
+  - key: api|GET|/api/v1/users/|validation|non-integer-limit
+mutates: false
+tags: [users, validation]
+steps:
+  - name: log in as the provided superuser
+    request:
+      method: POST
+      path: /api/v1/login/access-token
+      form:
+        username: ${ctx.profile.test_data.superuser.email}
+        password: ${ctx.profile.test_data.superuser.password}
+    extract:
+      admin_token: $.access_token
+    assert:
+      status: 200
+  - name: list users with a non-integer limit
+    request:
+      method: GET
+      path: /api/v1/users/
+      params:
+        limit: abc
+      headers:
+        Authorization: Bearer ${ctx.admin_token}
+    assert:
+      status: 422
+      json:
+        detail: "@type array"
+        detail.0.loc: "@contains limit"
+        detail.0.type: "@type string"

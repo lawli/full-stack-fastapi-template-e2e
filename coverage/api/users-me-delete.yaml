@@ -1,0 +1,52 @@
+service: api
+method: DELETE
+path: /api/v1/users/me
+conditions: []
+evidence:
+  - {file: backend/app/api/routes/users.py, line: 132, kind: route}
+  - {file: backend/app/api/routes/users.py, line: 29, kind: route}
+  - {file: backend/app/api/main.py, line: 8, kind: route}
+  - {file: backend/app/main.py, line: 35, kind: route}
+  - {file: backend/app/core/config.py, line: 22, kind: route}
+  - {file: frontend/src/client/sdk.gen.ts, line: 141, kind: requirement}
+rows:
+  - key: api|DELETE|/api/v1/users/me|happy|user-deletes-own-account
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/users.py, line: 132, kind: declarative}
+      - {file: backend/app/models.py, line: 116, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 541, kind: requirement}
+  - key: api|DELETE|/api/v1/users/me|state|deleted-account-no-longer-exists
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The removal is observable only through GET /users/{user_id}, whose 404 "User not found" comes from an imperative branch.
+    evidence:
+      - {file: backend/app/api/routes/users.py, line: 141, kind: implementation}
+      - {file: backend/app/api/routes/users.py, line: 177, kind: implementation}
+  - key: api|DELETE|/api/v1/users/me|state|owned-items-removed-with-account
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The cascade is declared on the models, but it is observable only through GET /items/{id}, whose 404 "Item not found" comes from an imperative branch.
+    evidence:
+      - {file: backend/app/models.py, line: 59, kind: declarative}
+      - {file: backend/app/models.py, line: 98, kind: declarative}
+      - {file: backend/app/api/routes/items.py, line: 54, kind: implementation}
+  - key: api|DELETE|/api/v1/users/me|auth|missing-token-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The repository declares the bearer scheme but not the response for a missing token; 401 "Not authenticated" is the pinned framework's default for OAuth2PasswordBearer.
+    evidence:
+      - {file: backend/app/api/deps.py, line: 16, kind: declarative}
+      - {file: frontend/src/client/sdk.gen.ts, line: 140, kind: requirement}
+  - key: api|DELETE|/api/v1/users/me|auth|superuser-cannot-delete-own-account
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: Status 403 and its detail come only from an imperative branch; no API document declares it.
+    evidence:
+      - {file: backend/app/api/routes/users.py, line: 137, kind: implementation}

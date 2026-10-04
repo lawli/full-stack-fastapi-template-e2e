@@ -1,0 +1,62 @@
+service: api
+method: GET
+path: /api/v1/users/
+conditions: []
+evidence:
+  - {file: backend/app/api/routes/users.py, line: 32, kind: route}
+  - {file: backend/app/api/routes/users.py, line: 29, kind: route}
+  - {file: backend/app/api/main.py, line: 8, kind: route}
+  - {file: backend/app/main.py, line: 35, kind: route}
+  - {file: backend/app/core/config.py, line: 22, kind: route}
+  - {file: frontend/src/client/sdk.gen.ts, line: 109, kind: requirement}
+rows:
+  - key: api|GET|/api/v1/users/|happy|superuser-lists-users
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/users.py, line: 35, kind: declarative}
+      - {file: backend/app/models.py, line: 68, kind: declarative}
+      - {file: backend/app/models.py, line: 63, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 500, kind: requirement}
+  - key: api|GET|/api/v1/users/|auth|missing-token-rejected
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The repository declares the bearer scheme but not the response for a missing token; 401 "Not authenticated" is the pinned framework's default for OAuth2PasswordBearer.
+    evidence:
+      - {file: backend/app/api/deps.py, line: 16, kind: declarative}
+      - {file: frontend/src/client/sdk.gen.ts, line: 108, kind: requirement}
+  - key: api|GET|/api/v1/users/|auth|normal-user-forbidden
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The route declares the superuser dependency, but status 403 and its detail come only from the dependency's imperative branch.
+    evidence:
+      - {file: backend/app/api/routes/users.py, line: 34, kind: declarative}
+      - {file: backend/app/api/deps.py, line: 53, kind: implementation}
+  - key: api|GET|/api/v1/users/|pagination|limit-caps-page-size
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: pending
+    reason: The limit parameter is declared, but that it caps the page while count reports the total is fixed only by the query the handler builds.
+    evidence:
+      - {file: backend/app/api/routes/users.py, line: 46, kind: implementation}
+      - {file: backend/app/api/routes/users.py, line: 42, kind: implementation}
+  - key: api|GET|/api/v1/users/|validation|non-integer-limit
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/users.py, line: 37, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 482, kind: requirement}
+      - {file: frontend/src/client/types.gen.ts, line: 491, kind: requirement}
+  - key: api|GET|/api/v1/users/|boundary|negative-skip-or-limit-within-declared-schema
+    source_commit: 1762adac607a1b29cfc4da129557780beea71616
+    status: authored
+    expectation: confirmed
+    evidence:
+      - {file: backend/app/api/routes/users.py, line: 37, kind: declarative}
+      - {file: frontend/src/client/types.gen.ts, line: 478, kind: requirement}
+      - {file: frontend/src/client/types.gen.ts, line: 500, kind: requirement}
+      - {file: backend/app/api/routes/users.py, line: 46, kind: implementation}
